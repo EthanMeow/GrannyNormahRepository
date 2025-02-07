@@ -12,32 +12,37 @@ public class CharacterController2D : MonoBehaviour
     public LayerMask groundLayer;
 
     [Header("Health System")]
-    public int maxHealth = 3; // Maximum health
-    public GameObject[] heartUI; // Array for heart UI objects
+    public int maxHealth = 3;
+    public GameObject[] heartUI;
 
     [Header("NPC Interaction")]
     public bool isSpeakingToNPC = false;
 
     private Rigidbody2D rb;
     private bool isGrounded;
+    private Animator anim; // Animator reference
+
+    private static readonly int IdleSpeedKey = Animator.StringToHash("IdleSpeed");
+    private static readonly int JumpKey = Animator.StringToHash("Jump");
+    private static readonly int GroundedKey = Animator.StringToHash("Grounded");
+    private static readonly int IsFallingKey = Animator.StringToHash("IsFalling");
+    private static readonly int IsJumpingKey = Animator.StringToHash("IsJumping");
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        anim = GetComponent<Animator>();
 
-        // Ensure heartUI array matches maxHealth
         if (heartUI.Length != maxHealth)
         {
             Debug.LogError("The number of heart UI objects doesn't match maxHealth!");
         }
 
-        // Initialize health in GameManager if not already set
         if (GameManager.instance != null && GameManager.instance.GetPlayerHealth() == 0)
         {
-            GameManager.instance.SavePlayerHealth(maxHealth); // Set initial health
+            GameManager.instance.SavePlayerHealth(maxHealth);
         }
 
-        // Update heart UI based on the health from GameManager
         UpdateHeartUI();
     }
 
@@ -47,14 +52,16 @@ public class CharacterController2D : MonoBehaviour
 
         HandleMovement();
         HandleJump();
+        UpdateAnimator();
     }
 
     private void HandleMovement()
     {
         float moveInput = Input.GetAxis("Horizontal");
-        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y); // FIXED
 
-        // Flip character sprite based on movement direction
+        anim.SetFloat(IdleSpeedKey, Mathf.Abs(moveInput));
+
         if (moveInput > 0)
             transform.localScale = new Vector3(1, 1, 1);
         else if (moveInput < 0)
@@ -67,7 +74,34 @@ public class CharacterController2D : MonoBehaviour
 
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce); // FIXED
+            anim.SetTrigger(JumpKey); // Jump animation trigger
+            Debug.Log("Jump Triggered!"); // Debugging
+        }
+    }
+
+    private void UpdateAnimator()
+    {
+        anim.SetBool(GroundedKey, isGrounded);
+
+        // Check if the player is jumping
+        if (!isGrounded && rb.linearVelocity.y > 0)
+        {
+            anim.SetBool(IsJumpingKey, true);
+        }
+        else
+        {
+            anim.SetBool(IsJumpingKey, false);
+        }
+
+        // If the player is falling (velocity.y < 0) but not grounded, it's a jump/fall state
+        if (!isGrounded && rb.linearVelocity.y < 0)
+        {
+            anim.SetBool(IsFallingKey, true);
+        }
+        else
+        {
+            anim.SetBool(IsFallingKey, false);
         }
     }
 
@@ -75,19 +109,12 @@ public class CharacterController2D : MonoBehaviour
     {
         if (damage <= 0) return;
 
-        // Reduce health in GameManager
         int currentHealth = GameManager.instance.GetPlayerHealth() - damage;
-
-        // Clamp current health to a minimum of 0
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
-
-        // Save the updated health to the GameManager
         GameManager.instance.SavePlayerHealth(currentHealth);
 
-        // Update the heart UI based on the current health from GameManager
         UpdateHeartUI();
 
-        // Handle death if health reaches 0
         if (currentHealth <= 0)
         {
             Die();
@@ -96,15 +123,12 @@ public class CharacterController2D : MonoBehaviour
 
     private void UpdateHeartUI()
     {
-        // Get the current health from GameManager
         int currentHealth = GameManager.instance.GetPlayerHealth();
-
-        // Update the heart UI based on current health
         for (int i = 0; i < heartUI.Length; i++)
         {
             if (heartUI[i] != null)
             {
-                heartUI[i].SetActive(i < currentHealth); // Show only hearts less than current health
+                heartUI[i].SetActive(i < currentHealth);
             }
         }
     }
@@ -112,7 +136,6 @@ public class CharacterController2D : MonoBehaviour
     private void Die()
     {
         Debug.Log("Player has died!");
-        // Implement death behavior here (e.g., respawn, game over screen)
     }
 
     void OnDrawGizmos()

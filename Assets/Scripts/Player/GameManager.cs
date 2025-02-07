@@ -11,6 +11,10 @@ public class GameManager : MonoBehaviour
     [Header("Collectibles")]
     public int collectedAmount = 0;     // Number of collected items (collectedAmount renamed to match your request)
 
+    [Header("Game Objects to Control")]
+    public GameObject objectToDisable; // The object to disable
+    public GameObject objectToEnable;  // The object to enable when the collectible count reaches 1
+
     void Awake()
     {
         // Singleton pattern
@@ -22,6 +26,22 @@ public class GameManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    void Update()
+    {
+        // Check if collectedAmount reaches 1 and handle the objects accordingly
+        if (collectedAmount >= 1)
+        {
+            if (objectToDisable != null)
+            {
+                objectToDisable.SetActive(false); // Disable object
+            }
+            if (objectToEnable != null)
+            {
+                objectToEnable.SetActive(true);  // Enable object
+            }
         }
     }
 
